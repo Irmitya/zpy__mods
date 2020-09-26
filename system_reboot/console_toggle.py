@@ -1,8 +1,12 @@
 import bpy
 import os
-if os.name == 'nt':
-    # There's an error that happens after running this but it DOES reopen the console
-    try:
+
+
+def toggle():
+    if os.name == 'nt':
+        # Only open console window, for Windows OS
         bpy.ops.wm.console_toggle()
-    except:
-        pass
+
+
+if __name__ == '__main__':
+    toggle()
