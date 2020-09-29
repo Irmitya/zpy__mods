@@ -13,21 +13,29 @@ import numpy
 from .jsonFunctions import objectDataToDico
 
 
-def is_linked(src):
-    return bool(getattr(src, 'library', None))
+def not_linked(src):
+    return not bool(getattr(src, 'library', None))
 
 
 def get_collection(context):
     bw_collection_name = prefs().bonewidget_collection_name
 
-    collection = bpy.data.collections.get(bw_collection_name)
+    def scan(data):
+        for col in data:
+            if (col.name == bw_collection_name) and (not_linked(col)):
+                return col
 
-    if not collection or is_linked(collection):
-        # Widgets collection hasn't been created or the one in file is linked
-        collection = bpy.data.collections.new(bw_collection_name)
+    collection = scan(context.scene.collection.children)
 
-    context.scene.collection.children.link(collection)
-    collection.hide_viewport = True
+    if not collection:
+        collection = scan(bpy.data.collections)
+
+        if not collection:
+            # Widgets collection hasn't been created or the one in file is linked
+            collection = bpy.data.collections.new(bw_collection_name)
+
+        context.scene.collection.children.link(collection)
+        collection.hide_viewport = True
 
     return collection
 
