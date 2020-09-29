@@ -43,6 +43,9 @@ def readWidgets():
 
 
 def addRemoveWidgets(context, addOrRemove, items, widgets):
+    from zpy import utils
+    from ... import __package__ as __addon__
+
     wgts = readWidgets()
 
     widget_items = []
@@ -50,7 +53,7 @@ def addRemoveWidgets(context, addOrRemove, items, widgets):
         widget_items.append(widget_item[1])
 
     if addOrRemove == 'add':
-        bw_widget_prefix = bpy.context.preferences.addons["boneWidget"].preferences.widget_prefix
+        bw_widget_prefix = utils.prefs(__addon__).bone_widgets.widget_prefix
         for ob in widgets:
             if ob.name.startswith(bw_widget_prefix):
                 ob_name = ob.name[len(bw_widget_prefix):]
