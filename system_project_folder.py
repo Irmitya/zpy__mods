@@ -19,7 +19,6 @@
 #
 # ***** END GPL LICENCE BLOCK *****
 
-from zpy import is27, is28
 from platform import system as currentOS
 import os
 import bpy
@@ -69,12 +68,11 @@ def menu_func(self, context):
     self.layout.operator(
         SYS_OT_ProjectFolder.bl_idname,
         text="Project Folder",
-        icon=('FILEBROWSER', "FILESEL")[is27])
+        icon='FILEBROWSER')
 
 
-if is28: cls = bpy.types.TOPBAR_MT_file
-if is28: cls = bpy.types.TOPBAR_MT_app
-if is27: cls = bpy.types.INFO_MT_file
+cls = bpy.types.TOPBAR_MT_file
+cls = bpy.types.TOPBAR_MT_app
 
 
 def register():

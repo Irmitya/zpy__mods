@@ -1,4 +1,4 @@
-from zpy import is27, is28, utils, Set, Get
+from zpy import utils, Set, Get
 from math import *
 from mathutils import *
 from ... import __package__ as __addon__
@@ -18,13 +18,7 @@ def is_linked(src):
 
 
 def get_collection(context):
-    if is27:
-        return None
-
     bw_collection_name = prefs().bonewidget_collection_name
-    collection = context.scene.collection.children.get(bw_collection_name)
-    if collection and not is_linked(collection):
-        return collection
 
     collection = bpy.data.collections.get(bw_collection_name)
 
@@ -79,9 +73,9 @@ def createWidget(context, bone, widget, relative, size, scale, slide, rotate, co
     if collection is inf:
         collection = get_collection(context)
 
-    if is28:  # Custom check to "keep visiblity?"
-        isolate_collection = collection.hide_viewport
-        Set.visible(context, collection)
+    # Custom check to "keep visiblity?"
+    isolate_collection = collection.hide_viewport
+    Set.visible(context, collection)
 
     if bone.custom_shape_transform:
         matrixBone = bone.custom_shape_transform
@@ -94,12 +88,8 @@ def createWidget(context, bone, widget, relative, size, scale, slide, rotate, co
         wgt_data_name = old_shape.data.name
         old_shape.name += "_old"
         old_shape.data.name += "_old"
-        if is27:
-            if context.scene.objects.get(old_shape.name):
-                context.scene.objects.unlink(old_shape)
-        if is28:
-            if collection.objects.get(old_shape.name):
-                collection.objects.unlink(old_shape)
+        if collection.objects.get(old_shape.name):
+            collection.objects.unlink(old_shape)
 
     # make the data name include the prefix
     newData = bpy.data.meshes.new(wgt_data_name)
@@ -136,15 +126,11 @@ def createWidget(context, bone, widget, relative, size, scale, slide, rotate, co
 
     newObject = bpy.data.objects.new(wgt_name, newData)
 
-    if is28:
-        # context.scene.collection.objects.link(newObject)
-        collection.objects.link(newObject)
-        # if isolate_collection:
-            # utils.update(context)
-        collection.hide_viewport = isolate_collection
-    if is27:
-        newObject.layers = [*[False] * 19, *[True] * 1]
-        context.scene.objects.link(newObject)
+    # context.scene.collection.objects.link(newObject)
+    collection.objects.link(newObject)
+    # if isolate_collection:
+        # utils.update(context)
+    collection.hide_viewport = isolate_collection
 
     # When it creates the widget it still doesn't take the armature scale into account
     "original uses matrix_world. I don't know if I care"
@@ -153,9 +139,7 @@ def createWidget(context, bone, widget, relative, size, scale, slide, rotate, co
     newObject.scale = [matrixBone.bone.length] * 3
     # context.scene.update()
 
-    if is28:
-        layer = context.view_layer
-        layer.update()
+    context.view_layer.update()
 
     bone.custom_shape = newObject
     bone.bone.show_wire = True
@@ -221,26 +205,18 @@ def editWidget(context, active_bone):
         bpy.context.scene.layers = visibleLayers.tolist()
     '''
 
-    if is27:
-        if not context.space_data.lock_camera_and_layers:
-            visibleLayers = numpy.array(context.space_data.layers) + widget.layers ^ numpy.array(armature.layers)
-            context.space_data.layers = visibleLayers.tolist()
-        else:
-            visibleLayers = numpy.array(context.scene.layers) + widget.layers ^ numpy.array(armature.layers)
-            context.scene.layers = visibleLayers.tolist()
-    if is28:
-        "Commented because the new version only uses get_collection"
-        if widget.users_collection:
-            collection = widget.users_collection[0]
-        else:
-            collection = get_collection(context)
-            collection.objects.link(widget)
-        Set.in_scene(context, collection)
-        Set.visible(context, collection)
-        "Commented because new version uses operator"
-            # get_collection_view_layer(collection).hide_viewport = False
-        if getattr(context.space_data, 'local_view', None):
-            bpy.ops.view3d.localview()
+    "Commented because the new version only uses get_collection"
+    if widget.users_collection:
+        collection = widget.users_collection[0]
+    else:
+        collection = get_collection(context)
+        collection.objects.link(widget)
+    Set.in_scene(context, collection)
+    Set.visible(context, collection)
+    "Commented because new version uses operator"
+        # get_collection_view_layer(collection).hide_viewport = False
+    if getattr(context.space_data, 'local_view', None):
+        bpy.ops.view3d.localview()
 
     # select object and make it active
     Set.select(widget, True)
@@ -252,42 +228,27 @@ def returnToArmature(context, widget):
     bone = fromWidgetFindBone(widget)
     armature = bone.id_data
 
-    if is28:
-        # Unhide collection if it was hidden in a previous run
-        if widget.users_collection:  # Try to use the widget's collection
-            collection = widget.users_collection[0]
-        else:  # otherwise use default
-            collection = get_collection(context)
-        Set.visible(context, collection)
+    # Unhide collection if it was hidden in a previous run
+    if widget.users_collection:  # Try to use the widget's collection
+        collection = widget.users_collection[0]
+    else:  # otherwise use default
+        collection = get_collection(context)
+    Set.visible(context, collection)
 
     Set.mode(context, widget, 'OBJECT')
 
-    if is27:
-        if not context.space_data.lock_camera_and_layers:
-            visibleLayers = numpy.array(context.space_data.layers) ^ widget.layers + numpy.array(armature.layers)
-            context.space_data.layers = visibleLayers.tolist()
-        else:
-            visibleLayers = numpy.array(context.scene.layers) ^ widget.layers + numpy.array(armature.layers)
-            context.scene.layers = visibleLayers.tolist()
-    if is28:
-        # collection = get_collection(context)
-        if [x for x in armature.users_collection if x != collection]:
-            # Don't hide the active collection
-            collection.hide_viewport = True
-        "New version doesn't have this"
-            # get_collection_view_layer(collection).hide_viewport = True
+    # collection = get_collection(context)
+    if [x for x in armature.users_collection if x != collection]:
+        # Don't hide the active collection
+        collection.hide_viewport = True
+    "New version doesn't have this"
+        # get_collection_view_layer(collection).hide_viewport = True
 
     if getattr(context.space_data, 'local_view', None):
         bpy.ops.view3d.localview()
 
     Set.active(context, armature)
     Set.select(armature, True)
-
-    if is27:
-        for (i, l) in enumerate(armature.layers):
-            if l:
-                context.scene.layers[i] = True
-                break
 
     Set.mode(context, armature, 'POSE')
     # Set.select(bone, True)

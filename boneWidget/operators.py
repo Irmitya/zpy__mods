@@ -1,4 +1,4 @@
-from zpy import is27, is28, Get, New, utils
+from zpy import Get, New, utils
 from math import *
 from mathutils import *
 from .. import __package__ as __addon__
@@ -55,15 +55,15 @@ class BONEWIDGET_OT_createWidget(Operator):
         layout = self.layout
 
         row = layout.row()
-        row.label(text="Slide:", icon=('ORIENTATION_GLOBAL', 'MAN_TRANS')[is27])
+        row.label(text="Slide:", icon='ORIENTATION_GLOBAL')
         row.prop(self, 'mirror')
         layout.row().prop(self, 'slide', text="")
 
-        layout.label(text="Rotation:", icon=('ORIENTATION_LOCAL', 'MAN_ROT')[is27])
+        layout.label(text="Rotation:", icon='ORIENTATION_LOCAL')
         layout.row().prop(self, 'rotate', text="")
 
         row = layout.row()
-        row.label(text="Scale", icon=('ORIENTATION_VIEW', 'MAN_SCALE')[is27])
+        row.label(text="Scale", icon='ORIENTATION_VIEW')
         row.prop(self, 'relative_size')
         layout.prop(self, 'global_size', expand=False)
         layout.row().prop(self, 'scale', text="")

@@ -1,4 +1,4 @@
-from zpy import utils, register_keymaps, is27, is28
+from zpy import utils, register_keymaps
 from bpy.types import Operator
 from bpy.props import BoolProperty, FloatProperty, IntProperty
 import bpy
@@ -72,21 +72,12 @@ class CENDA_OT_ChangeFrame(Operator):
         space_data = context.space_data
 
         def set_text(items=None):
-            if is27:
-                if items is None:
-                    context.area.header_text_set()
-                else:
-                    string = ""
-                    for (icon, text) in items:
-                        string += f"{text}    "
-                    context.area.header_text_set(string)
-            if is28:
-                if items is None:
-                    bpy.types.STATUSBAR_HT_header.remove(self.draw_status)
-                    context.window.workspace.status_text_set(None)
-                else:
-                    context.window.workspace.status_text_set("")
-                    self.text = items
+            if items is None:
+                bpy.types.STATUSBAR_HT_header.remove(self.draw_status)
+                context.window.workspace.status_text_set(None)
+            else:
+                context.window.workspace.status_text_set("")
+                self.text = items
 
         if scene.use_preview_range:
             start = scene.frame_preview_start
@@ -154,16 +145,10 @@ class CENDA_OT_ChangeFrame(Operator):
 
             # previous viewport setting
             if (context.area.type == 'VIEW_3D'):
-                if is27:
-                    space_data.show_manipulator = self.previousManipulator
+                space_data.show_gizmo = self.previousManipulator
 
-                    if (self.renderOnly):
-                        space_data.show_only_render = self.previousOnlyRender
-                if is28:
-                    space_data.show_gizmo = self.previousManipulator
-
-                    if (self.renderOnly):
-                        space_data.overlay.show_overlays = self.previousOnlyRender
+                if (self.renderOnly):
+                    space_data.overlay.show_overlays = self.previousOnlyRender
 
             # cursor back
             context.window.cursor_set("DEFAULT")
@@ -191,20 +176,12 @@ class CENDA_OT_ChangeFrame(Operator):
 
         # hide viewport helpers
         if (context.area.type == 'VIEW_3D'):
-            if is27:
-                self.previousManipulator = space_data.show_manipulator
-                # space_data.show_manipulator = False
-            if is28:
-                self.previousManipulator = space_data.show_gizmo
-                # space_data.show_gizmo = False
+            self.previousManipulator = space_data.show_gizmo
+            # space_data.show_gizmo = False
 
             if (self.renderOnly):
-                if is27:
-                    self.previousOnlyRender = space_data.show_only_render
-                    space_data.show_only_render = True
-                if is28:
-                    self.previousOnlyRender = space_data.overlay.show_overlays
-                    space_data.overlay.show_overlays = False
+                self.previousOnlyRender = space_data.overlay.show_overlays
+                space_data.overlay.show_overlays = False
 
         # start modal
         if (addon_prefs.boolSmoothDrag):
@@ -219,7 +196,7 @@ class CENDA_OT_ChangeFrame(Operator):
         context.window.cursor_set("SCROLL_X")
 
         self.text = []
-        if is28: bpy.types.STATUSBAR_HT_header.prepend(self.draw_status)
+        bpy.types.STATUSBAR_HT_header.prepend(self.draw_status)
         context.window_manager.modal_handler_add(self)
 
         found = False
@@ -253,7 +230,7 @@ class CENDA_OT_ChangeFrame(Operator):
 def register():
     args = dict(name='Frames', type='SPACE')
     km.add('view3d.change_frame_drag', **args, value='CLICK_DRAG')
-    km.toggle('screen.animation_play', **args, value='PRESS', addon=is27)
+    km.toggle('screen.animation_play', **args, value='PRESS')
     km.add('screen.animation_play', **args, value='CLICK')
 
 

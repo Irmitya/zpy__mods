@@ -1,5 +1,4 @@
 # Add-on information
-from zpy import is27, is28
 import sys
 import os
 import subprocess
@@ -52,9 +51,8 @@ def menu_func(self, context):
     # layout.separator()
 
 
-if is28: cls = bpy.types.TOPBAR_MT_file
-if is28: cls = bpy.types.TOPBAR_MT_app
-if is27: cls = bpy.types.INFO_MT_file
+cls = bpy.types.TOPBAR_MT_file
+cls = bpy.types.TOPBAR_MT_app
 
 
 def register():
