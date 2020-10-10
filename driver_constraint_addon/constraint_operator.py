@@ -25,6 +25,9 @@ from mathutils import Vector, Quaternion, Euler
 from zpy import Is
 
 
+default_1 = ('scale', 'bbone_scaleinx', 'bbone_scaleiny', 'bbone_scaleoutx', 'bbone_scaleouty')
+
+
 class local:
     driver = None
 
@@ -365,8 +368,10 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
             value = value[self.prop_data_index]
 
         if (value is not None):
-            if data_path in ('scale', 'bbone_scaleinx', 'bbone_scaleiny', 'bbone_scaleoutx', 'bbone_scaleouty'):
+            if data_path in default_1:
                 self.prop_min_value = 1
+            else:
+                self.prop_min_value = self.prop_min_value_last
 
             if data_path in ('influence', 'value'):
                 # Set the driver value to the default of on/1  (shapekeys/constraints)
@@ -504,6 +509,10 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
         self.set_limit_constraint(context)
 
         if driver_found:
+            if (data_path not in default_1) or (self.prop_min_value != 1):
+                # Save current minimum value as default
+                self.prop_min_value_last = self.prop_min_value
+
             msg = self.prop_data_path + " Driver has been added."
             self.report({'INFO'}, msg)
         else:
@@ -799,6 +808,7 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
         default=1.0,
         description="That value is used as 1.0 value for the Property.",
     )
+    prop_min_value_last: FloatProperty()
     loop_driver_limits: BoolProperty(
         name="Loop Driver Limits",
         default=False,
