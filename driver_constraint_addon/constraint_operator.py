@@ -399,7 +399,6 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
                         data = data.data
                     if prop_type in ["MODIFIER_PROPERTY", "OBJECT_CONSTRAINT_PROPERTY"]:
                         data_path = self.prop_data_path.split(".")[1]
-                        curve = data.driver_add(data_path, self.prop_data_index)
                     elif prop_type in ["BONE_PROPERTY"]:
                         # this is used for props of that type: bones["bone_name"]["property_name"]
                         if self.prop_data_path.rfind("]") == len(self.prop_data_path) - 1:
@@ -409,22 +408,20 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
                         # this is used for props of that type: bones["bone_name"].property_name
                         else:
                             data_path = self.prop_data_path.split("\"].")[1]
-                        curve = data.driver_add(data_path, self.prop_data_index)
                     elif prop_type in ["BONE_CONSTRAINT_PROPERTY"]:
                         string_elements = self.prop_data_path.split(".")
                         data_path = string_elements[len(string_elements) - 1]
 
-                        curve = data.driver_add(data_path, self.prop_data_index)
                     elif prop_type in ["NODE_PROPERTY"]:
-                        curve = data.driver_add("default_value", self.prop_data_index)
+                        data_path = 'default_value'
                     else:
                         if "." in self.prop_data_path:
-                            data, path = get_property_and_path(
-                                obj, self.prop_data_path)
-                            if path is not None:
-                                curve = data.driver_add(path, self.prop_data_index)
+                            data, data_path = get_property_and_path(obj, self.prop_data_path)
                         else:
-                            curve = data.driver_add(self.prop_data_path, self.prop_data_index)
+                            data_path = self.prop_data_path
+
+                    if data_path is not None:
+                        curve = data.driver_add(data_path, self.prop_data_index)
                 else:
                     curve = None
 
