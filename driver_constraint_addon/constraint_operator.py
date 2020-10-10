@@ -389,114 +389,117 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
 
         driver_found = False
         for obj in context.selected_objects:
-            if obj != context.view_layer.objects.active or len(context.selected_objects) == 1:
-                curve = None
-                prop_object = get_prop_object(context, self.prop_data_path, obj)
-                if prop_object is not None:
-                    (data, prop_type) = prop_object
+            if obj == context.view_layer.objects.active and len(context.selected_objects) != 1:
+                continue
 
-                    if (data == obj) and (self.property_type == "OBJECT_DATA_PROPERTY"):
-                        data = data.data
-                    if prop_type in ["MODIFIER_PROPERTY", "OBJECT_CONSTRAINT_PROPERTY"]:
-                        data_path = self.prop_data_path.split(".")[1]
-                    elif prop_type in ["BONE_PROPERTY"]:
-                        # this is used for props of that type: bones["bone_name"]["property_name"]
-                        if self.prop_data_path.rfind("]") == len(self.prop_data_path) - 1:
-                            from_idx = self.prop_data_path.rfind("[\"")
-                            to_idx = self.prop_data_path.rfind("\"]") + 1
-                            data_path = self.prop_data_path[from_idx:to_idx]
-                        # this is used for props of that type: bones["bone_name"].property_name
-                        else:
-                            data_path = self.prop_data_path.split("\"].")[1]
-                    elif prop_type in ["BONE_CONSTRAINT_PROPERTY"]:
-                        string_elements = self.prop_data_path.split(".")
-                        data_path = string_elements[len(string_elements) - 1]
+            prop_object = get_prop_object(context, self.prop_data_path, obj)
+            if prop_object is None:
+                continue
 
-                    elif prop_type in ["NODE_PROPERTY"]:
-                        data_path = 'default_value'
-                    else:
-                        if "." in self.prop_data_path:
-                            data, data_path = get_property_and_path(obj, self.prop_data_path)
-                        else:
-                            data_path = self.prop_data_path
+            (data, prop_type) = prop_object
+            if (data == obj) and (self.property_type == "OBJECT_DATA_PROPERTY"):
+                data = data.data
 
-                    if data_path is not None:
-                        curve = data.driver_add(data_path, self.prop_data_index)
+            if prop_type in ["MODIFIER_PROPERTY", "OBJECT_CONSTRAINT_PROPERTY"]:
+                data_path = self.prop_data_path.split(".")[1]
+            elif prop_type in ["BONE_PROPERTY"]:
+                # this is used for props of that type: bones["bone_name"]["property_name"]
+                if self.prop_data_path.rfind("]") == len(self.prop_data_path) - 1:
+                    from_idx = self.prop_data_path.rfind("[\"")
+                    to_idx = self.prop_data_path.rfind("\"]") + 1
+                    data_path = self.prop_data_path[from_idx:to_idx]
+                # this is used for props of that type: bones["bone_name"].property_name
                 else:
-                    curve = None
+                    data_path = self.prop_data_path.split("\"].")[1]
+            elif prop_type in ["BONE_CONSTRAINT_PROPERTY"]:
+                string_elements = self.prop_data_path.split(".")
+                data_path = string_elements[len(string_elements) - 1]
+            elif prop_type in ["NODE_PROPERTY"]:
+                data_path = 'default_value'
+            else:
+                if "." in self.prop_data_path:
+                    data, data_path = get_property_and_path(obj, self.prop_data_path)
+                else:
+                    data_path = self.prop_data_path
 
-                curves = []
-                if curve is not None:
-                    curves.append(curve)
-                    if type(curve) == list:
-                        curves = curve
+            if data_path is None:
+                continue
 
-                # create driver fcurve which defines how the value is driven
-                for curve in curves:
-                    if curve is not None:
-                        driver_found = True
-                        if len(curve.driver.variables) < 1:
-                            curve_var = curve.driver.variables.new()
-                        else:
-                            curve_var = curve.driver.variables[0]
+            curve = data.driver_add(data_path, self.prop_data_index)
 
-                        if len(curve.modifiers) > 0:
-                            curve.modifiers.remove(curve.modifiers[0])
+            if type(curve) == list:
+                curves = curve
+            else:
+                curves = [curve]
 
-                        curve.extrapolation = self.extrapolation_type
-                            # extend curve in a constant angle (without the modifier)
+            # create driver fcurve which defines how the value is driven
+            for curve in curves:
+                if curve is None:
+                    continue
+                driver_found = True
 
-                        curve.driver.type = "AVERAGE"
-                        curve_var.type = "TRANSFORMS"
-                        # setup driver object/bone
-                        driver_obj = context.active_object
-                        curve_var.targets[0].id = driver_obj
-                        if driver_obj.type == "ARMATURE":
-                            curve_var.targets[0].bone_target = bpy.context.active_pose_bone.name
-                        curve_var.targets[0].transform_space = self.space
-                        curve_var.targets[0].transform_type = self.type
+                if len(curve.driver.variables) < 1:
+                    curve_var = curve.driver.variables.new()
+                else:
+                    curve_var = curve.driver.variables[0]
 
-                        if self.type in ["ROT_X", "ROT_Y", "ROT_Z"]:
-                            min_value = radians(self.min_value)
-                            max_value = radians(self.max_value)
-                        else:
-                            min_value = self.min_value
-                            max_value = self.max_value
+                if len(curve.modifiers) > 0:
+                    curve.modifiers.remove(curve.modifiers[0])
 
-                        while curve.keyframe_points:
-                            curve.keyframe_points.remove(
-                                curve.keyframe_points[0])
+                curve.extrapolation = self.extrapolation_type
+                    # extend curve in a constant angle (without the modifier)
 
-                        # Use add() instead of insert(), to keep both keys from VERY low values
-                        if self.loop_driver_limits:
-                            curve.keyframe_points.add(3)
-                            point_a, point_b, point_c = curve.keyframe_points[:]
-                        else:
-                            curve.keyframe_points.add(2)
-                            point_a, point_b = curve.keyframe_points[:]
+                curve.driver.type = "AVERAGE"
+                curve_var.type = "TRANSFORMS"
+                # setup driver object/bone
+                driver_obj = context.active_object
+                curve_var.targets[0].id = driver_obj
+                if driver_obj.type == "ARMATURE":
+                    curve_var.targets[0].bone_target = bpy.context.active_pose_bone.name
+                curve_var.targets[0].transform_space = self.space
+                curve_var.targets[0].transform_type = self.type
 
-                        # point_a = curve.keyframe_points.insert(
-                            # min_value, self.prop_min_value)
-                        point_a.co = (min_value, self.prop_min_value)
-                        point_a.interpolation = self.interpolation_type
+                if self.type in ["ROT_X", "ROT_Y", "ROT_Z"]:
+                    min_value = radians(self.min_value)
+                    max_value = radians(self.max_value)
+                else:
+                    min_value = self.min_value
+                    max_value = self.max_value
 
-                        # point_b = curve.keyframe_points.insert(
-                            # max_value, self.prop_max_value)
-                        point_b.co = (max_value, self.prop_max_value)
-                        point_b.interpolation = self.interpolation_type
+                while curve.keyframe_points:
+                    curve.keyframe_points.remove(
+                        curve.keyframe_points[0])
 
-                        if self.loop_driver_limits:
-                            dif = abs(max_value - min_value)
+                # Use add() instead of insert(), to keep both keys from VERY low values
+                if self.loop_driver_limits:
+                    curve.keyframe_points.add(3)
+                    point_a, point_b, point_c = curve.keyframe_points[:]
+                else:
+                    curve.keyframe_points.add(2)
+                    point_a, point_b = curve.keyframe_points[:]
 
-                            if max_value >= min_value:
-                                # point_c = curve.keyframe_points.insert(
-                                    # max_value + dif, self.prop_min_value)
-                                point_c.co = (max_value + dif, self.prop_min_value)
-                            else:
-                                # point_c = curve.keyframe_points.insert(
-                                    # min_value + dif, self.prop_max_value)
-                                point_c.co = (min_value + dif, self.prop_max_value)
-                            point_c.interpolation = self.interpolation_type
+                # point_a = curve.keyframe_points.insert(
+                    # min_value, self.prop_min_value)
+                point_a.co = (min_value, self.prop_min_value)
+                point_a.interpolation = self.interpolation_type
+
+                # point_b = curve.keyframe_points.insert(
+                    # max_value, self.prop_max_value)
+                point_b.co = (max_value, self.prop_max_value)
+                point_b.interpolation = self.interpolation_type
+
+                if self.loop_driver_limits:
+                    dif = abs(max_value - min_value)
+
+                    if max_value >= min_value:
+                        # point_c = curve.keyframe_points.insert(
+                            # max_value + dif, self.prop_min_value)
+                        point_c.co = (max_value + dif, self.prop_min_value)
+                    else:
+                        # point_c = curve.keyframe_points.insert(
+                            # min_value + dif, self.prop_max_value)
+                        point_c.co = (min_value + dif, self.prop_max_value)
+                    point_c.interpolation = self.interpolation_type
 
         self.set_limit_constraint(context)
 
