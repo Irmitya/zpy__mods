@@ -69,8 +69,13 @@ class BONEWIDGET_OT_createWidget(Operator):
         layout.row().prop(self, 'scale', text="")
 
     def execute(self, context):
-        bones = Get.selected_pose_bones(context)
-        if self.bones: bones = eval(self.bones)
+        if self.bones:
+            bones = eval(self.bones)
+        else:
+            bones = Get.selected_pose_bones(context)
+
+        if not bones:
+            return {'CANCELLED'}
 
         wgts = readWidgets()
         if self.widget:
