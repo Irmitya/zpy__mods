@@ -17,12 +17,13 @@ load_modules = load_modules(__file__, __package__)
 
 bl_info = {
     "name": "Mods for Other Addons",
-    "author": "",
+    "author": "COnLOAR",
     "description": "",
     "blender": (2, 80, 0),
     "version": (0, 0, 0),
     "location": "",
     "warning": "",
+    'wiki_url': "https://blenderartists.org/t/zpy-various-miscellaneous-addons/1254269",
     "category": "General",
 }
 
