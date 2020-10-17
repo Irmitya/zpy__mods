@@ -44,7 +44,10 @@ class overwrite():
 
     def reload(self):
         # Reload draw functions
-        metarig_menu.unregister()
+        try:
+            metarig_menu.unregister()
+        except:
+            return
 
         metarig_menu.metarig_ops.clear()
         metarig_menu.armature_submenus.clear()
