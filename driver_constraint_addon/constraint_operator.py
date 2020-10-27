@@ -253,73 +253,55 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
             self.report({'INFO'}, "Action constraints deleted.")
 
     def set_defaults(self, context):
-        driver_src = self.driver
-        if not driver_src:
+        src = self.driver
+        if not src:
             return
 
+        driver = get_driver_matrix(src)
+
         # set location
-        if (driver_src.location != Vector((0, 0, 0))):
-            xyz = [
-                abs(driver_src.location.x),
-                abs(driver_src.location.y),
-                abs(driver_src.location.z),
-            ]
+        if (tuple(round(_, 5) for _ in driver.location) != (0, 0, 0)):
+            xyz = [abs(_) for _ in driver.location]
             m = max(xyz)
-            type = ["LOC_X", "LOC_Y", "LOC_Z"]
+            type_ = ["LOC_X", "LOC_Y", "LOC_Z"]
 
             for i, value in enumerate(xyz):
                 if xyz[i] == m:
                     self.min_value = 0.0
-                    self.max_value = driver_src.location[i]
-                    self.type = type[i]
+                    self.max_value = driver.location[i]
+                    self.type = type_[i]
                     break
 
             return "LIMIT_LOCATION"
 
         # set rotation
-        if driver_src.rotation_mode == "QUATERNION":
-            driver_rotation = driver_src.rotation_quaternion.to_euler("XYZ")
-        else:
-            driver_rotation = driver_src.rotation_euler
-        if (Vector((driver_rotation.x, driver_rotation.y, driver_rotation.z)) != Vector((0, 0, 0))):
-            xyz = [
-                abs(driver_rotation.x),
-                abs(driver_rotation.y),
-                abs(driver_rotation.z),
-            ]
+        if (tuple(round(degrees(_), 5) for _ in driver.rotation) != (0, 0, 0)):
+            xyz = [abs(_) for _ in driver.rotation]
             m = max(xyz)
-            type = ["ROT_X", "ROT_Y", "ROT_Z"]
+            type_ = ["ROT_X", "ROT_Y", "ROT_Z"]
 
             for i, value in enumerate(xyz):
                 if xyz[i] == m:
                     self.min_value = 0.0
-                    self.max_value = degrees(driver_rotation[i])
-                    self.type = type[i]
+                    self.max_value = degrees(driver.rotation[i])
+                    self.type = type_[i]
                     break
 
             return "LIMIT_ROTATION"
 
         # set scale
-        if (driver_src.scale != Vector((1, 1, 1))):
-            xyz = [
-                abs(driver_src.scale.x),
-                abs(driver_src.scale.y),
-                abs(driver_src.scale.z),
-            ]
-            xyz_delta = [
-                abs(1.0 - driver_src.scale.x),
-                abs(1.0 - driver_src.scale.y),
-                abs(1.0 - driver_src.scale.z),
-            ]
-            m_delta = max(xyz_delta)
+        if (tuple(round(_, 5) for _ in driver.scale) != (1, 1, 1)):
+            xyz = [abs(_) for _ in driver.scale]
+            xyz_delta = [abs(1.0 - _) for _ in driver.scale]
             m = max(xyz)
-            type = ["SCALE_X", "SCALE_Y", "SCALE_Z"]
+            m_delta = max(xyz_delta)
+            type_ = ["SCALE_X", "SCALE_Y", "SCALE_Z"]
 
             for i, value in enumerate(xyz):
                 if xyz_delta[i] == m_delta:
                     self.min_value = 1.0
                     self.max_value = xyz[i]
-                    self.type = type[i]
+                    self.type = type_[i]
                     break
 
             return "LIMIT_SCALE"
@@ -681,10 +663,11 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
     )
 
     def update_type_defaults(self, context):
-        driver_src = local.driver
-
-        if not driver_src:
+        src = local.driver
+        if not src:
             return
+
+        driver = get_driver_matrix(src)
 
         locs = ["LOC_X", "LOC_Y", "LOC_Z"]
         rots = ["ROT_X", "ROT_Y", "ROT_Z"]
@@ -694,22 +677,16 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
             # set location
             index = locs.index(self.type)
             self.min_value = 0.0
-            self.max_value = driver_src.location[index]
+            self.max_value = driver.location[index]
         elif (self.type in rots):
             # set rotation
             index = rots.index(self.type)
-            if (driver_src.rotation_mode == "QUATERNION"):
-                driver_rotation = driver_src.rotation_quaternion.to_euler("XYZ")
-            else:
-                driver_rotation = driver_src.rotation_euler
-
             self.min_value = 0.0
-            self.max_value = degrees(driver_rotation[index])
+            self.max_value = degrees(driver.rotation[index])
         elif (self.type in scales):
             # set scale
             index = scales.index(self.type)
-            xyz = [abs(driver_src.scale.x), abs(driver_src.scale.y), abs(driver_src.scale.z)]
-
+            xyz = [abs(_) for _ in driver.scale]
             self.min_value = 1.0
             self.max_value = xyz[index]
     type: EnumProperty(
@@ -1045,3 +1022,16 @@ def get_action_length(action):
             action_length = max(action_length, length)
 
     return action_length
+
+
+def get_driver_matrix(src):
+    from zpy import Get
+    mat = Get.matrix_local(src)
+    driver = type('', (), dict(
+        location=mat.to_translation(),
+        rotation=mat.to_euler(
+            'XYZ' if src.rotation_mode in ('QUATERNION', 'AXIS_ANGLE')
+            else src.rotation_mode),
+        scale=mat.to_scale(),
+    ))
+    return driver
