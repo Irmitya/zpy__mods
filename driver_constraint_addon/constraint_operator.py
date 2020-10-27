@@ -176,8 +176,7 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
             obj = context.selected_objects[0]
 
         clip = self.get_short_path(wm.clipboard)
-
-        if clip != "":
+        if clip:
             try:
                 prop_object = get_prop_object(context, clip, obj)
 
@@ -217,46 +216,39 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
     def create_actions_constraints(self, context):
         if self.action_mode == "ADD_CONSTRAINT":
             for bone in context.selected_pose_bones:
-                if context.active_pose_bone != bone:
-                    const = bone.constraints.new("ACTION")
-                    if "LOCAL" in self.space:
-                        const.target_space = "LOCAL"
-                    elif "WORLD" in self.space:
-                        const.target_space = "WORLD"
-                    const.target = context.active_object
-                    const.subtarget = context.active_pose_bone.name
+                if context.active_pose_bone == bone:
+                    continue
+                const = bone.constraints.new("ACTION")
+                if "LOCAL" in self.space:
+                    const.target_space = "LOCAL"
+                elif "WORLD" in self.space:
+                    const.target_space = "WORLD"
+                const.target = context.active_object
+                const.subtarget = context.active_pose_bone.name
 
-                    if self.type == "LOC_X":
-                        const.transform_channel = "LOCATION_X"
-                    elif self.type == "LOC_Y":
-                        const.transform_channel = "LOCATION_Y"
-                    elif self.type == "LOC_Z":
-                        const.transform_channel = "LOCATION_Z"
-                    elif self.type == "ROT_X":
-                        const.transform_channel = "ROTATION_X"
-                    elif self.type == "ROT_Y":
-                        const.transform_channel = "ROTATION_Y"
-                    elif self.type == "ROT_Z":
-                        const.transform_channel = "ROTATION_Z"
-                    else:
-                        const.transform_channel = self.type
+                if self.type in ('LOC_X', 'LOC_Y', 'LOC_Z'):
+                    const.transform_channel = self.type.replace('LOC', 'LOCATION')
+                elif self.type in ('ROT_X', 'ROT_Y', 'ROT_Z'):
+                    const.transform_channel = self.type.replace('ROT', 'ROTATION')
+                else:
+                    const.transform_channel = self.type
 
-                    const.min = self.min_value
-                    const.max = self.max_value
-                    const.frame_start = self.action_frame_start
-                    const.frame_end = self.action_frame_end
-                    const.action = bpy.data.actions[self.action]
+                const.min = self.min_value
+                const.max = self.max_value
+                const.frame_start = self.action_frame_start
+                const.frame_end = self.action_frame_end
+                const.action = bpy.data.actions[self.action]
             bpy.ops.ed.undo_push(message="Action Constraints generated.")
             self.report({'INFO'}, "Action constraints generated.")
         elif self.action_mode == "DELETE_CONSTRAINT":
-            for bone in context.selected_pose_bones:
-                for const in bone.constraints:
-                    # or (self.action_constraint == "ALL_ACTIONS"):
-                    if (const.name == self.action_constraint):
-                        # bone.constraints.remove(const)
-                        # if self.action_constraint != "ALL_ACTIONS":
-                        #    break
-                        pass
+            # for bone in context.selected_pose_bones:
+                # for const in bone.constraints:
+                    # # or (self.action_constraint == "ALL_ACTIONS"):
+                    # if (const.name == self.action_constraint):
+                        # # bone.constraints.remove(const)
+                        # # if self.action_constraint != "ALL_ACTIONS":
+                        # #    break
+                        # pass
             bpy.ops.ed.undo_push(message="Action Constraints deleted.")
             self.report({'INFO'}, "Action constraints deleted.")
 
@@ -520,56 +512,40 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
             self.report({'WARNING'}, msg)
 
     def set_limit_constraint(self, context):
-        if self.set_driver_limit_constraint:
-            if self.limit_type is not None:
-                # if "Driver Limit" in self.driver.constraints:
-                    # self.driver.constraints.remove(
-                        # self.driver.constraints["Driver Limit"])
+        if (not self.set_driver_limit_constraint) or (self.limit_type is None):
+            return
+        # if "Driver Limit" in self.driver.constraints:
+            # self.driver.constraints.remove(
+                # self.driver.constraints["Driver Limit"])
 
-                const = self.driver.constraints.new(self.limit_type)
-                const.name = "Driver Limit"
+        const = self.driver.constraints.new(self.limit_type)
+        const.name = "Driver Limit"
 
-                if "LOCAL" in self.space:
-                    const.owner_space = "LOCAL"
-                elif "WORLD" in self.space:
-                    const_owner_space = "WORLD"
+        if "LOCAL" in self.space:
+            const.owner_space = "LOCAL"
+        elif "WORLD" in self.space:
+            const_owner_space = "WORLD"
 
-                if self.min_value < self.max_value:
-                    min_value = self.min_value
-                    max_value = self.max_value
-                else:
-                    min_value = self.max_value
-                    max_value = self.min_value
+        if self.min_value < self.max_value:
+            min_value = self.min_value
+            max_value = self.max_value
+        else:
+            min_value = self.max_value
+            max_value = self.min_value
 
-                if self.limit_type in ["LIMIT_LOCATION", "LIMIT_SCALE"]:
-                    if "X" in self.type:
-                        const.use_min_x = True
-                        const.use_max_x = True
-                        const.min_x = min_value
-                        const.max_x = max_value
-                    elif "Y" in self.type:
-                        const.use_min_y = True
-                        const.use_max_y = True
-                        const.min_y = min_value
-                        const.max_y = max_value
-                    elif "Z" in self.type:
-                        const.use_min_z = True
-                        const.use_max_z = True
-                        const.min_z = min_value
-                        const.max_z = max_value
-                elif self.limit_type == "LIMIT_ROTATION":
-                    if "X" in self.type:
-                        const.use_limit_x = True
-                        const.min_x = radians(min_value)
-                        const.max_x = radians(max_value)
-                    elif "Y" in self.type:
-                        const.use_limit_y = True
-                        const.min_y = radians(min_value)
-                        const.max_y = radians(max_value)
-                    elif "Z" in self.type:
-                        const.use_limit_z = True
-                        const.min_z = radians(min_value)
-                        const.max_z = radians(max_value)
+        if self.limit_type in ["LIMIT_LOCATION", "LIMIT_SCALE"]:
+            for xyz in ('XYZ'):
+                if xyz in self.type:
+                    setattr(const, f'use_min_{xyz}', True)
+                    setattr(const, f'use_max_{xyz}', True)
+                    setattr(const, f'min_{xyz}', min_value)
+                    setattr(const, f'max_{xyz}', max_value)
+        elif self.limit_type == "LIMIT_ROTATION":
+            for xyz in ('XYZ'):
+                if xyz in self.type:
+                    setattr(const, f'use_limit_{xyz}', True)
+                    setattr(const, f'min_{xyz}', radians(min_value))
+                    setattr(const, f'max_{xyz}', radians(max_value))
 
     def get_short_path(self, prop_name):
         # Split property if it's a fullpath
@@ -1012,7 +988,6 @@ def get_prop_object(context, prop_name, obj):
 
     # return if property is found in bone
     if (obj.type == "ARMATURE") and ('"' in prop_name) and ("bones" in prop_name):
-
         if (len(prop_name.split('"')) >= 3):
             bone_name = prop_name.split('"')[1]
             if (bone_name in obj.data.bones):
