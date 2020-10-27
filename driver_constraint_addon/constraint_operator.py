@@ -506,7 +506,7 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
         if "LOCAL" in self.space:
             const.owner_space = "LOCAL"
         elif "WORLD" in self.space:
-            const_owner_space = "WORLD"
+            const.owner_space = "WORLD"
 
         if self.min_value < self.max_value:
             min_value = self.min_value
