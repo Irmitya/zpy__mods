@@ -29,7 +29,8 @@ default_1 = ('scale', 'bbone_scaleinx', 'bbone_scaleiny', 'bbone_scaleoutx', 'bb
 
 
 class local:
-    driver = None
+    src = None  # bone/object that's getting the driver
+    limit_type = None  # type of limit constraint to add to bone/object
 
 
 class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
@@ -41,6 +42,10 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         return context.active_object is not None
+
+    def __init__(self):
+        local.src = None  # bone/object that's getting the driver
+        local.limit_type = None  # type of limit constraint to add to bone/object
 
     def draw(self, context):
         layout = self.layout
@@ -62,7 +67,7 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
 
             row = layout.row()
             row.label(text="Space")
-            row.prop(self, "space", text="")
+            row.prop(self, "transform_space", text="")
 
             row = layout.row()
             row.label(text="Get Driver Limits")
@@ -127,7 +132,7 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
 
                 row = layout.row()
                 row.label(text="Space")
-                row.prop(self, "space", text="")
+                row.prop(self, "transform_space", text="")
 
                 row = layout.row()
                 col = row.column()
@@ -158,12 +163,7 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
 
     def invoke(self, context, event):
         wm = context.window_manager
-
-        self.driver = None
-        if context.active_object.type == "ARMATURE" and context.active_pose_bone is not None:
-            self.driver = context.active_pose_bone
-        else:  # elif context.active_object.type in ["MESH", "EMPTY"]:
-            self.driver = context.active_object
+        get_src(context)
 
         if len(context.selected_objects) > 1:
             obj = None
@@ -191,8 +191,7 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
                 return {'CANCELLED'}
 
         if self.get_limits_auto:
-            local.driver = self.driver
-            self.limit_type = self.set_defaults(context)
+            local.limit_type = self.set_defaults(context)
 
         if bpy.data.actions and (self.action in bpy.data.actions):
             action = bpy.data.actions[self.action]
@@ -219,10 +218,10 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
                 if context.active_pose_bone == bone:
                     continue
                 const = bone.constraints.new("ACTION")
-                if "LOCAL" in self.space:
-                    const.target_space = "LOCAL"
-                elif "WORLD" in self.space:
-                    const.target_space = "WORLD"
+                if (self.transform_space == 'WORLD_SPACE'):
+                    const.target_space = 'WORLD'
+                elif (self.transform_space == 'LOCAL_SPACE'):
+                    const.target_space = 'LOCAL'
                 const.target = context.active_object
                 const.subtarget = context.active_pose_bone.name
 
@@ -253,11 +252,8 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
             self.report({'INFO'}, "Action constraints deleted.")
 
     def set_defaults(self, context):
-        src = self.driver
-        if not src:
-            return
-
-        driver = get_driver_matrix(src)
+        src = local.src
+        driver = get_driver_matrix(src, space=self.transform_space)
 
         # set location
         if (tuple(round(_, 5) for _ in driver.location) != (0, 0, 0)):
@@ -435,7 +431,7 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
                 curve_var.targets[0].id = driver_obj
                 if driver_obj.type == "ARMATURE":
                     curve_var.targets[0].bone_target = bpy.context.active_pose_bone.name
-                curve_var.targets[0].transform_space = self.space
+                curve_var.targets[0].transform_space = self.transform_space
                 curve_var.targets[0].transform_type = self.type
 
                 if self.type in ["ROT_X", "ROT_Y", "ROT_Z"]:
@@ -494,19 +490,19 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
             self.report({'WARNING'}, msg)
 
     def set_limit_constraint(self, context):
-        if (not self.set_driver_limit_constraint) or (self.limit_type is None):
+        if (not self.set_driver_limit_constraint) or (local.limit_type is None):
             return
-        # if "Driver Limit" in self.driver.constraints:
-            # self.driver.constraints.remove(
-                # self.driver.constraints["Driver Limit"])
+        # if "Driver Limit" in local.src.constraints:
+            # local.src.constraints.remove(
+                # local.src.constraints["Driver Limit"])
 
-        const = self.driver.constraints.new(self.limit_type)
+        const = local.src.constraints.new(local.limit_type)
         const.name = "Driver Limit"
 
-        if "LOCAL" in self.space:
-            const.owner_space = "LOCAL"
-        elif "WORLD" in self.space:
-            const.owner_space = "WORLD"
+        if (self.transform_space == 'WORLD_SPACE'):
+            const.owner_space = 'WORLD'
+        elif (self.transform_space == 'LOCAL_SPACE'):
+            const.owner_space = 'LOCAL'
 
         if self.min_value < self.max_value:
             min_value = self.min_value
@@ -515,14 +511,14 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
             min_value = self.max_value
             max_value = self.min_value
 
-        if self.limit_type in ["LIMIT_LOCATION", "LIMIT_SCALE"]:
+        if local.limit_type in ["LIMIT_LOCATION", "LIMIT_SCALE"]:
             for xyz in ('XYZ'):
                 if xyz in self.type:
                     setattr(const, f'use_min_{xyz}', True)
                     setattr(const, f'use_max_{xyz}', True)
                     setattr(const, f'min_{xyz}', min_value)
                     setattr(const, f'max_{xyz}', max_value)
-        elif self.limit_type == "LIMIT_ROTATION":
+        elif local.limit_type == "LIMIT_ROTATION":
             for xyz in ('XYZ'):
                 if xyz in self.type:
                     setattr(const, f'use_limit_{xyz}', True)
@@ -542,9 +538,6 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
                 prop_name = prop_name.rsplit('[', 1)[0]
 
         return prop_name
-
-    driver = None  # bone/object that's getting the driver
-    limit_type = None  # type of limit constraint to add to bone/object
 
     mode: EnumProperty(
         name="Operator Mode",
@@ -590,7 +583,6 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
     property_type: EnumProperty(
         name="Mode",
         items=get_property_type_items,
-        description="Set the space the bone is transformed in. Local Space recommended.",
     )
 
     def search_for_prop(self, context):
@@ -663,11 +655,8 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
     )
 
     def update_type_defaults(self, context):
-        src = local.driver
-        if not src:
-            return
-
-        driver = get_driver_matrix(src)
+        src = get_src(context)
+        driver = get_driver_matrix(src, space=self.transform_space)
 
         locs = ["LOC_X", "LOC_Y", "LOC_Z"]
         rots = ["ROT_X", "ROT_Y", "ROT_Z"]
@@ -704,6 +693,21 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
         ],
         description="Set the type you want to be used as input to drive the shapekey.",
         update=update_type_defaults,
+    )
+    def update_transform_space(self, context):
+        cls = DRIVER_CONSTRAINT_OT_create
+        if self.get_limits_auto:
+            local.limit_type = cls.set_defaults(self, context)
+    transform_space: EnumProperty(
+        name="Space",
+        items=[
+            ('WORLD_SPACE', "World Space", "Transforms include effects of parenting/restpose and constraints (Visual Transforms without parent)", "None", 2),
+            ('TRANSFORM_SPACE', "Transform Space", "Transforms don't include parenting/restpose or constraints (Local Transforms)", "None", 1),
+            ('LOCAL_SPACE', "Local Space", "Transforms include effects of constraints but not parenting/restpose (Visual Transforms)", "None", 0),
+        ],
+        default='LOCAL_SPACE',
+        description="Space in which transforms are used in the driver",
+        update=update_transform_space,
     )
     min_value: FloatProperty(
         name="Min Value",
@@ -802,7 +806,7 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
         action_names = []
         ACTIONS = []
         i = 0
-        for bone in context.selected_pose_bones:
+        for bone in context.selected_pose_bones if context.selected_pose_bones else []:
             for const in bone.constraints:
                 if const.name not in action_names:
                     action_names.append(const.name)
@@ -825,15 +829,6 @@ class DRIVER_CONSTRAINT_OT_create(bpy.types.Operator):
             ("DELETE_CONSTRAINT", "Delete Constraints", "Delete Constraints"),
         ),
         description="Delete or Add Action Constraints for selected bones.",
-    )
-    space: EnumProperty(
-        name="Space",
-        items=[
-            ("LOCAL_SPACE", "Local Space", "Local Space", "None", 0),
-            ("TRANSFORM_SPACE", "Transform Space", "Transform Space", "None", 1),
-            ("WORLD_SPACE", "World Space", "World Space", "None", 2),
-        ],
-        description="Set the space the bone is transformed in. Local Space recommended.",
     )
     action_frame_start: IntProperty(
         name="Min Value",
@@ -1024,9 +1019,14 @@ def get_action_length(action):
     return action_length
 
 
-def get_driver_matrix(src):
+def get_driver_matrix(src, space='LOCAL_SPACE'):
     from zpy import Get
-    mat = Get.matrix_local(src)
+    if space == 'LOCAL_SPACE':
+        mat = Get.matrix_local(src)
+    elif space == 'TRANSFORM_SPACE':
+        mat = Get.matrix(src, basis=True)
+    else:  # WORLD
+        mat = Get.matrix(src)
     driver = type('', (), dict(
         location=mat.to_translation(),
         rotation=mat.to_euler(
@@ -1035,3 +1035,12 @@ def get_driver_matrix(src):
         scale=mat.to_scale(),
     ))
     return driver
+
+
+def get_src(context):
+    if local.src is None:
+        if context.active_object.type == "ARMATURE" and context.active_pose_bone is not None:
+            local.src = context.active_pose_bone
+        else:  # elif context.active_object.type in ["MESH", "EMPTY"]:
+            local.src = context.active_object
+    return local.src
