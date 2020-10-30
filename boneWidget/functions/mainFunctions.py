@@ -200,7 +200,7 @@ def editWidget(context, active_bone):
     widget = active_bone.custom_shape
 
     armature = active_bone.id_data
-    Set.mode(context, armature, 'OBJECT')
+    Set.mode(context, 'OBJECT', armature)
     Set.select(armature, False)
 
     '''  # 2.7
@@ -229,7 +229,7 @@ def editWidget(context, active_bone):
     # select object and make it active
     Set.select(widget, True)
     Set.active(context, widget)
-    Set.mode(context, widget, 'EDIT')
+    Set.mode(context, 'EDIT', widget)
 
 
 def returnToArmature(context, widget):
@@ -243,7 +243,7 @@ def returnToArmature(context, widget):
         collection = get_collection(context)
     Set.visible(context, collection)
 
-    Set.mode(context, widget, 'OBJECT')
+    Set.mode(context, 'OBJECT', widget)
 
     # collection = get_collection(context)
     if [x for x in armature.users_collection if x != collection]:
@@ -258,7 +258,7 @@ def returnToArmature(context, widget):
     Set.active(context, armature)
     Set.select(armature, True)
 
-    Set.mode(context, armature, 'POSE')
+    Set.mode(context, 'POSE', armature)
     # Set.select(bone, True)
     # Set.active(context, bone)
     armature.data.bones[bone.name].select = True
